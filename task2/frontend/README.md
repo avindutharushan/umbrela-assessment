@@ -1,36 +1,47 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# WorkflowCore Frontend (Next.js)
 
-## Getting Started
+This is the frontend user interface for **WorkflowCore**. It demonstrates how a client application interacts with the highly concurrent, event-sourced backend engine.
 
-First, run the development server:
+> For complete architectural notes, database schemas, and global setup instructions, please see the [Root README](../README.md).
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+---
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+## 🚀 Tech Stack
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+- **Framework**: [Next.js](https://nextjs.org) (App Router)
+- **Language**: TypeScript
+- **Styling**: Vanilla CSS (`src/app/globals.css`)
+- **API Client**: Axios
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+---
 
-## Learn More
+## ⚙️ Setup & Execution
 
-To learn more about Next.js, take a look at the following resources:
+1. **Install Dependencies**
+   ```bash
+   npm install
+   ```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+2. **Environment Variables**
+   The frontend expects the backend API to be running on `http://localhost:3000`. This is configured by default.
+   If you need to change it, create a `.env.local` file:
+   ```env
+   NEXT_PUBLIC_API_URL=http://localhost:3000/api
+   ```
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+3. **Start the Development Server**
+   ```bash
+   npm run dev
+   ```
 
-## Deploy on Vercel
+4. **Access the UI**
+   Open **[http://localhost:3001](http://localhost:3001)** with your browser (note: the dev server is configured to run on port 3001 to avoid conflicting with the NestJS backend).
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+---
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+## 🌟 Key Features Demonstrated
+
+- **Concurrency Handling (Optimistic Locking)**: Navigate to `/items/[id]` and click "Edit" on the Details panel. The UI passes the current `version` token back to the API. If another user edits the item first, the UI gracefully catches the `409 Conflict` error.
+- **Dynamic Template Builder**: Navigate to `/templates/new` to see a dynamic React form that constructs complex workflow graphs (stages and transitions) and maps backend role permissions (`ADMIN`, `USER`) dynamically.
+- **Event Sourcing (Audit Trail)**: Navigate to `/items/[id]` to see the visual "Timeline / Audit Trail". This is powered by the backend's immutable event stream.
+- **Dynamic Action Buttons**: The UI dynamically reads the available transitions for an item's current stage and renders the appropriate action buttons (e.g., "Approve", "Reject", "Close").
