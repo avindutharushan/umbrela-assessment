@@ -1,0 +1,239 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================
+// USERS
+// ============================================================
+
+model User {
+  id           String   @id @default(uuid()) @db.Uuid
+  email        String   @unique
+  name         String
+  passwordHash String   @map("password_hash")
+  role         String   @default("USER") // USER | ADMIN
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  // Relations
+  createdTemplates    WorkflowTemplate[]
+  assignedItems       WorkflowItemAssignment[]
+  actedAuditEvents    AuditEvent[]             @relation("actor")
+  uploadedAttachments DocumentAttachment[]
+  comments            WorkflowItemComment[]
+  notifications       NotificationOutbox[]
+
+  @@map("users")
+}
+
+// ============================================================
+// WORKFLOW TEMPLATES — the configurable workflow definitions
+// ============================================================
+
+model WorkflowTemplate {
+  id          String   @id @default(uuid()) @db.Uuid
+  name        String
+  description String?  @db.Text
+  createdBy   String   @map("created_by") @db.Uuid
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  // Relations
+  creator User            @relation(fields: [createdBy], references: [id])
+  stages  TemplateStage[]
+  items   WorkflowItem[]
+
+  @@map("workflow_templates")
+}
+
+// A named stage within a template (e.g., "Draft", "Review", "Approved").
+model TemplateStage {
+  id         String   @id @default(uuid()) @db.Uuid
+  templateId String   @map("template_id") @db.Uuid
+  name       String
+  position   Int      @default(0)
+  isStart    Boolean  @default(false) @map("is_start")
+  isFinal    Boolean  @default(false) @map("is_final")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  template            WorkflowTemplate  @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  outgoingTransitions StageTransition[] @relation("fromStage")
+  incomingTransitions StageTransition[] @relation("toStage")
+  currentItems        WorkflowItem[]    @relation("currentStage")
+
+  @@unique([templateId, name])
+  @@map("template_stages")
+}
+
+// A valid transition between two stages — the edges of the workflow graph.
+model StageTransition {
+  id          String   @id @default(uuid()) @db.Uuid
+  templateId  String   @map("template_id") @db.Uuid
+  fromStageId String   @map("from_stage_id") @db.Uuid
+  toStageId   String   @map("to_stage_id") @db.Uuid
+  name        String?
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  fromStage   TemplateStage          @relation("fromStage", fields: [fromStageId], references: [id], onDelete: Cascade)
+  toStage     TemplateStage          @relation("toStage", fields: [toStageId], references: [id], onDelete: Cascade)
+  permissions TransitionPermission[]
+
+  @@unique([fromStageId, toStageId])
+  @@map("stage_transitions")
+}
+
+// Who is allowed to perform a specific transition.
+// Permissions are DATA-DRIVEN — stored per template, not hardcoded.
+model TransitionPermission {
+  id           String  @id @default(uuid()) @db.Uuid
+  transitionId String  @map("transition_id") @db.Uuid
+  role         String?
+  userId       String? @map("user_id") @db.Uuid
+
+  // Relations
+  transition StageTransition @relation(fields: [transitionId], references: [id], onDelete: Cascade)
+
+  @@map("transition_permissions")
+}
+
+// ============================================================
+// WORKFLOW ITEMS — instances of a template
+// ============================================================
+
+model WorkflowItem {
+  id             String    @id @default(uuid()) @db.Uuid
+  templateId     String    @map("template_id") @db.Uuid
+  title          String
+  description    String?   @db.Text
+  priority       String    @default("MEDIUM")
+  currentStageId String    @map("current_stage_id") @db.Uuid
+  dueDate        DateTime? @map("due_date")
+  version        Int       @default(1)
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  // Relations
+  template     WorkflowTemplate        @relation(fields: [templateId], references: [id])
+  currentStage TemplateStage           @relation("currentStage", fields: [currentStageId], references: [id])
+  assignments  WorkflowItemAssignment[]
+  auditEvents  AuditEvent[]
+  attachments  DocumentAttachment[]
+  comments     WorkflowItemComment[]
+
+  @@index([templateId])
+  @@index([currentStageId])
+  @@index([createdAt])
+  @@map("workflow_items")
+}
+
+// Many-to-many: a workflow item can be assigned to multiple users.
+model WorkflowItemAssignment {
+  id         String   @id @default(uuid()) @db.Uuid
+  itemId     String   @map("item_id") @db.Uuid
+  userId     String   @map("user_id") @db.Uuid
+  assignedAt DateTime @default(now()) @map("assigned_at")
+
+  // Relations
+  item WorkflowItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id])
+
+  @@unique([itemId, userId])
+  @@map("workflow_item_assignments")
+}
+
+// ============================================================
+// AUDIT EVENTS — the immutable source of truth (event sourcing)
+// ============================================================
+
+model AuditEvent {
+  id          String   @id @default(uuid()) @db.Uuid
+  itemId      String   @map("item_id") @db.Uuid
+  actorId     String   @map("actor_id") @db.Uuid
+  eventType   String   @map("event_type")
+  payload     Json     @default("{}")
+  sequenceNum Int      @map("sequence_num")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  // Relations
+  item  WorkflowItem @relation(fields: [itemId], references: [id])
+  actor User         @relation("actor", fields: [actorId], references: [id])
+
+  @@index([itemId, sequenceNum])
+  @@index([itemId, createdAt])
+  @@index([actorId])
+  @@map("audit_events")
+}
+
+// ============================================================
+// COMMENTS
+// ============================================================
+
+model WorkflowItemComment {
+  id        String   @id @default(uuid()) @db.Uuid
+  itemId    String   @map("item_id") @db.Uuid
+  authorId  String   @map("author_id") @db.Uuid
+  body      String   @db.Text
+  createdAt DateTime @default(now()) @map("created_at")
+
+  // Relations
+  item   WorkflowItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  author User         @relation(fields: [authorId], references: [id])
+
+  @@index([itemId, createdAt])
+  @@map("workflow_item_comments")
+}
+
+// ============================================================
+// DOCUMENT ATTACHMENTS (with versioning)
+// ============================================================
+
+model DocumentAttachment {
+  id         String   @id @default(uuid()) @db.Uuid
+  itemId     String   @map("item_id") @db.Uuid
+  uploadedBy String   @map("uploaded_by") @db.Uuid
+  fileName   String   @map("file_name")
+  filePath   String   @map("file_path")
+  mimeType   String   @map("mime_type")
+  fileSize   Int      @map("file_size")
+  versionNum Int      @default(1) @map("version_num")
+  isLatest   Boolean  @default(true) @map("is_latest")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  // Relations
+  item     WorkflowItem @relation(fields: [itemId], references: [id], onDelete: Cascade)
+  uploader User         @relation(fields: [uploadedBy], references: [id])
+
+  @@index([itemId, fileName, versionNum])
+  @@index([itemId, isLatest])
+  @@map("document_attachments")
+}
+
+// ============================================================
+// NOTIFICATION OUTBOX — persistent queue
+// ============================================================
+
+model NotificationOutbox {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @map("user_id") @db.Uuid
+  type        String
+  payload     Json      @default("{}")
+  status      String    @default("PENDING")
+  attempts    Int       @default(0)
+  processedAt DateTime? @map("processed_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+
+  // Relations
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([status, createdAt])
+  @@map("notification_outbox")
+}
