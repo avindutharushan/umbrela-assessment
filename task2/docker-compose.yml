@@ -1,0 +1,35 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: workflowcore-db
+    ports:
+      - '5434:5432'
+    environment:
+      POSTGRES_USER: workflowcore
+      POSTGRES_PASSWORD: workflowcore_dev
+      POSTGRES_DB: workflowcore
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U workflowcore']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  postgres-test:
+    image: postgres:16-alpine
+    container_name: workflowcore-db-test
+    ports:
+      - '5435:5432'
+    environment:
+      POSTGRES_USER: workflowcore
+      POSTGRES_PASSWORD: workflowcore_test
+      POSTGRES_DB: workflowcore_test
+    tmpfs:
+      - /var/lib/postgresql/data
+
+volumes:
+  pgdata:

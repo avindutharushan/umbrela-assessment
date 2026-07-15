@@ -1,0 +1,16 @@
+{
+  "name": "workflow-core",
+  "version": "1.0.0",
+  "private": true,
+  "description": "WorkflowCore — A configurable workflow engine",
+  "scripts": {
+    "dev:backend": "cd backend && npm run start:dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "test": "cd backend && npm run test",
+    "test:e2e": "cd backend && npm run test:e2e",
+    "lint": "cd backend && npm run lint",
+    "db:migrate": "cd backend && npx prisma migrate dev",
+    "db:seed": "cd backend && npx prisma db seed",
+    "db:studio": "cd backend && npx prisma studio"
+  }
+}
