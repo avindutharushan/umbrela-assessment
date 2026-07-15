@@ -79,3 +79,4 @@ npm run test:e2e
 - `audit-event-sourcing.e2e-spec.ts`: Verifies complete event capture.
 - `crash-recovery.e2e-spec.ts`: Verifies the `ReconcileService` can rebuild the materialized state from the audit log.
 - `notification-queue.e2e-spec.ts`: Verifies the Transactional Outbox pattern.
+

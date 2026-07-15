@@ -8,13 +8,13 @@ The architecture was specifically designed to handle high concurrency, data inte
 
 ### 1. Concurrency Safety (Transitions & Field Edits)
 - **Problem**: Concurrent users could overwrite each other's edits or create bifurcated workflow states.
-- **Solution**: The engine employs a hybrid locking strategy. 
+- **Solution**: The engine employs a hybrid locking strategy.
   - **Field Edits**: We use **Optimistic Locking** combined with pessimistic row locks. The client must submit the current `version` of the item. During the update, the backend acquires a `SELECT ... FOR UPDATE` lock, verifies the version, applies the update, and increments the version atomically. This ensures exactly one winner without silently dropping edits.
   - **Stage Transitions**: Transitions also utilize `SELECT ... FOR UPDATE` within a Prisma transaction to ensure that two users attempting to transition the same item simultaneously are serialized, and only the valid transition succeeds.
 
 ### 2. Immutable Audit Trail (Event Sourcing)
 - **Problem**: Audit logs are often treated as "side-tables" that drift from the materialized state over time.
-- **Solution**: The engine is built around Event Sourcing principles. Every state change (creation, transition, comment) is recorded as an immutable `AuditEvent`. The `ReconcileService` provides an endpoint that can provably rebuild the materialized state of any item completely from scratch by replaying its event history forward. 
+- **Solution**: The engine is built around Event Sourcing principles. Every state change (creation, transition, comment) is recorded as an immutable `AuditEvent`. The `ReconcileService` provides an endpoint that can provably rebuild the materialized state of any item completely from scratch by replaying its event history forward.
 
 ### 3. Durable Notification Queue (Transactional Outbox Pattern)
 - **Problem**: In-memory queues lose messages if the server crashes. Standard external message queues can suffer from dual-write problems if the database transaction commits but the message fails to send.
@@ -79,7 +79,7 @@ npm run test:e2e
 
 ## 📖 API Documentation
 
-The backend utilizes **Swagger** for interactive API documentation. 
+The backend utilizes **Swagger** for interactive API documentation.
 Once the backend server is running (`npm run start:dev`), you can view and test all endpoints via the Swagger UI at:
 **[http://localhost:3000/api-docs](http://localhost:3000/api-docs)**
 

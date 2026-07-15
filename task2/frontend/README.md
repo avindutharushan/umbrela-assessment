@@ -45,3 +45,4 @@ This is the frontend user interface for **WorkflowCore**. It demonstrates how a 
 - **Dynamic Template Builder**: Navigate to `/templates/new` to see a dynamic React form that constructs complex workflow graphs (stages and transitions) and maps backend role permissions (`ADMIN`, `USER`) dynamically.
 - **Event Sourcing (Audit Trail)**: Navigate to `/items/[id]` to see the visual "Timeline / Audit Trail". This is powered by the backend's immutable event stream.
 - **Dynamic Action Buttons**: The UI dynamically reads the available transitions for an item's current stage and renders the appropriate action buttons (e.g., "Approve", "Reject", "Close").
+
